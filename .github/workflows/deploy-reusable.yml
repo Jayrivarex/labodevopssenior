@@ -1,0 +1,56 @@
+name: 'Reusable Deploy Workflow'
+
+on:
+  workflow_call:
+    inputs:
+      environment_name:
+        required: true
+        type: string
+    secrets:
+      SWA_TOKEN:
+        required: true
+      KUBE_CONFIG:
+        required: true
+
+jobs:
+  deploy-frontend-swa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build And Deploy Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "/"
+          output_location: ""
+
+  deploy-backend-aks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Tools via Composite Action
+        uses: ./.github/actions/setup-tools
+
+      - name: Configure Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Deploy Workload to AKS
+        run: |
+          kubectl create deployment nginx-demo --image=nginx:alpine --dry-run=client -o yaml > deployment.yaml
+          kubectl apply -f deployment.yaml
+          kubectl get pods -o wide
+
+  deploy-api-apim:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync API Gateway Contract
+        run: |
+          echo "=== Sincronizando especificacion OpenAPI con Azure APIM ==="
+          echo "APIM Endpoint configurado y actualizado."

@@ -1,0 +1,27 @@
+name: 'Main Enterprise CI/CD Pipeline'
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security-and-sast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Run Custom SAST & SCA Scan
+        uses: ./.github/actions/sast-sca-scan
+
+  trigger-deployments:
+    needs: security-and-sast
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      environment_name: 'production'
+    secrets:
+      SWA_TOKEN: ${{ secrets.SWA_TOKEN }}
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      
